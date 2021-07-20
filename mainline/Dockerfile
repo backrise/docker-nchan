@@ -15,7 +15,7 @@ ENV MODULES_DIR /usr/local/nginx/modules
 ENV DEBIAN_FRONTEND noninteractive
 
 WORKDIR /usr/local/src
-
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
 RUN apt-get update
 RUN apt-get install --no-install-recommends --no-install-suggests -y gnupg1 ca-certificates wget
 RUN apt-get install -y dpkg-dev libpcre3-dev zlib1g-dev
@@ -46,20 +46,10 @@ RUN mv objs/ngx_nchan_module.so ${MODULES_DIR}
 ## release
 ##
 FROM nginx:1.19.1
-LABEL maintainer Yuki Takei <yuki@weseek.co.jp>
 
-ENV MODULES_DIR /usr/local/nginx/modules
+COPY --from=builder /usr/local/nginx/modules/ngx_nchan_module.so /etc/nginx/modules/
 
-RUN mkdir -p ${MODULES_DIR}
-
-COPY --from=builder \
-  ${MODULES_DIR}/ngx_nchan_module.so ${MODULES_DIR}
-
-RUN echo "# load Nchan module" > /tmp/nginx.conf
-RUN echo "load_module ${MODULES_DIR}/ngx_nchan_module.so;" >> /tmp/nginx.conf
-RUN cat /etc/nginx/nginx.conf >> /tmp/nginx.conf
-
-RUN mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.org
-RUN mv /tmp/nginx.conf /etc/nginx/nginx.conf
-
-COPY ./conf.d/default.conf /etc/nginx/conf.d/
+RUN mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig && \
+    echo "load_module modules/ngx_nchan_module.so;" > /etc/nginx/nginx.conf  && \
+    cat /etc/nginx/nginx.conf.orig >> /etc/nginx/nginx.conf && \
+    rm /etc/nginx/nginx.conf.orig
